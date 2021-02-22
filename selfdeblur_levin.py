@@ -17,6 +17,7 @@ from tqdm import tqdm
 from torch.optim.lr_scheduler import MultiStepLR
 from utils.common_utils import *
 from SSIM import SSIM
+import datetime
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--num_iter', type=int, default=5000, help='number of epochs of training')
@@ -28,16 +29,16 @@ parser.add_argument('--save_frequency', type=int, default=100, help='lfrequency 
 opt = parser.parse_args()
 #print(opt)
 
-torch.backends.cudnn.enabled = True
-torch.backends.cudnn.benchmark =True
-dtype = torch.cuda.FloatTensor
+torch.backends.cudnn.enabled = False
+torch.backends.cudnn.benchmark = False
+dtype = torch.FloatTensor  # torch.cuda.FloatTensor
 
-warnings.filterwarnings("ignore")
+# warnings.filterwarnings("ignore")
 
 files_source = glob.glob(os.path.join(opt.data_path, '*.png'))
 files_source.sort()
-save_path = opt.save_path
-os.makedirs(save_path, exist_ok=True)
+opt_save_path = opt.save_path + datetime.datetime.utcnow().strftime("%Y%m%d%H%M%S") + '/'
+os.makedirs(opt_save_path, exist_ok=True)
 
 # start #image
 for f in files_source:
@@ -134,7 +135,7 @@ for f in files_source:
         out_y = nn.functional.conv2d(out_x, out_k_m, padding=0, bias=None)
 
         if step < 1000:
-            total_loss = mse(out_y,y) 
+            total_loss = mse(out_y,y)
         else:
             total_loss = 1-ssim(out_y, y) 
 
@@ -142,19 +143,20 @@ for f in files_source:
         optimizer.step()
 
         if (step+1) % opt.save_frequency == 0:
-            #print('Iteration %05d' %(step+1))
+            print('Iteration %05d' %(step+1))
+            print('Loss: {:.7f}'.format(float(total_loss)))
 
-            save_path = os.path.join(opt.save_path, '%s_x.png'%imgname)
+            save_path = os.path.join(opt_save_path, '{}_x_{:05.0f}.png'.format(imgname, step+1))
             out_x_np = torch_to_np(out_x)
             out_x_np = out_x_np.squeeze()
             out_x_np = out_x_np[padh//2:padh//2+img_size[1], padw//2:padw//2+img_size[2]]
             imsave(save_path, out_x_np)
 
-            save_path = os.path.join(opt.save_path, '%s_k.png'%imgname)
+            save_path = os.path.join(opt_save_path, '{}_k_{:05.0f}.png'.format(imgname, step+1))
             out_k_np = torch_to_np(out_k_m)
             out_k_np = out_k_np.squeeze()
             out_k_np /= np.max(out_k_np)
             imsave(save_path, out_k_np)
 
-            torch.save(net, os.path.join(opt.save_path, "%s_xnet.pth" % imgname))
-            torch.save(net_kernel, os.path.join(opt.save_path, "%s_knet.pth" % imgname))
+            torch.save(net, os.path.join(opt_save_path, "%s_xnet.pth" % imgname))
+            torch.save(net_kernel, os.path.join(opt_save_path, "%s_knet.pth" % imgname))
