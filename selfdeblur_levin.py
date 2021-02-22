@@ -1,22 +1,18 @@
 from __future__ import print_function
-import matplotlib.pyplot as plt
+
 import argparse
-import os
-import numpy as np
-from networks.skip import skip
-from networks.fcn import fcn
-import cv2
-import torch
-import torch.optim
-import glob
-from skimage.io import imread
-from skimage.io import imsave
-import warnings
-from tqdm import tqdm
-from torch.optim.lr_scheduler import MultiStepLR
-from utils.common_utils import *
-from SSIM import SSIM
 import datetime
+import glob
+import os
+
+from skimage.io import imsave
+from torch.optim.lr_scheduler import MultiStepLR
+from tqdm import tqdm
+
+from SSIM import SSIM
+from networks.fcn import fcn
+from networks.skip import skip
+from utils.common_utils import *
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--num_iter', type=int, default=5000, help='number of epochs of training')
