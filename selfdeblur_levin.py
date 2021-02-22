@@ -1,4 +1,3 @@
-
 from __future__ import print_function
 import matplotlib.pyplot as plt
 import argparse
@@ -27,7 +26,7 @@ parser.add_argument('--data_path', type=str, default="datasets/levin/", help='pa
 parser.add_argument('--save_path', type=str, default="results/levin/", help='path to save results')
 parser.add_argument('--save_frequency', type=int, default=100, help='lfrequency to save results')
 opt = parser.parse_args()
-#print(opt)
+# print(opt)
 
 torch.backends.cudnn.enabled = False
 torch.backends.cudnn.benchmark = False
@@ -69,14 +68,14 @@ for f in files_source:
     if imgname.find('kernel8') != -1:
         opt.kernel_size = [21, 21]
 
-    _, imgs = get_image(path_to_image, -1) # load image and convert to np.
+    _, imgs = get_image(path_to_image, -1)  # load image and convert to np.
     y = np_to_torch(imgs).type(dtype)
 
     img_size = imgs.shape
     print(imgname)
     # ######################################################################
-    padh, padw = opt.kernel_size[0]-1, opt.kernel_size[1]-1
-    opt.img_size[0], opt.img_size[1] = img_size[1]+padh, img_size[2]+padw
+    padh, padw = opt.kernel_size[0] - 1, opt.kernel_size[1] - 1
+    opt.img_size[0], opt.img_size[1] = img_size[1] + padh, img_size[2] + padw
 
     '''
     x_net:
@@ -85,12 +84,12 @@ for f in files_source:
 
     net_input = get_noise(input_depth, INPUT, (opt.img_size[0], opt.img_size[1])).type(dtype)
 
-    net = skip( input_depth, 1,
-                num_channels_down = [128, 128, 128, 128, 128],
-                num_channels_up   = [128, 128, 128, 128, 128],
-                num_channels_skip = [16, 16, 16, 16, 16],
-                upsample_mode='bilinear',
-                need_sigmoid=True, need_bias=True, pad=pad, act_fun='LeakyReLU')
+    net = skip(input_depth, 1,
+               num_channels_down=[128, 128, 128, 128, 128],
+               num_channels_up=[128, 128, 128, 128, 128],
+               num_channels_skip=[16, 16, 16, 16, 16],
+               upsample_mode='bilinear',
+               need_sigmoid=True, need_bias=True, pad=pad, act_fun='LeakyReLU')
 
     net = net.type(dtype)
 
@@ -101,7 +100,7 @@ for f in files_source:
     net_input_kernel = get_noise(n_k, INPUT, (1, 1)).type(dtype)
     net_input_kernel.squeeze_()
 
-    net_kernel = fcn(n_k, opt.kernel_size[0]*opt.kernel_size[1])
+    net_kernel = fcn(n_k, opt.kernel_size[0] * opt.kernel_size[1])
     net_kernel = net_kernel.type(dtype)
 
     # Losses
@@ -109,7 +108,7 @@ for f in files_source:
     ssim = SSIM().type(dtype)
 
     # optimizer
-    optimizer = torch.optim.Adam([{'params':net.parameters()},{'params':net_kernel.parameters(),'lr':1e-4}], lr=LR)
+    optimizer = torch.optim.Adam([{'params': net.parameters()}, {'params': net_kernel.parameters(), 'lr': 1e-4}], lr=LR)
     scheduler = MultiStepLR(optimizer, milestones=[2000, 3000, 4000], gamma=0.5)  # learning rates
 
     # initilization inputs
@@ -120,7 +119,8 @@ for f in files_source:
     for step in tqdm(range(num_iter)):
 
         # input regularization
-        net_input = net_input_saved + reg_noise_std*torch.zeros(net_input_saved.shape).type_as(net_input_saved.data).normal_()
+        net_input = net_input_saved + reg_noise_std * torch.zeros(net_input_saved.shape).type_as(
+            net_input_saved.data).normal_()
 
         # change the learning rate
         scheduler.step(step)
@@ -129,30 +129,30 @@ for f in files_source:
         # get the network output
         out_x = net(net_input)
         out_k = net_kernel(net_input_kernel)
-    
-        out_k_m = out_k.view(-1,1,opt.kernel_size[0],opt.kernel_size[1])
+
+        out_k_m = out_k.view(-1, 1, opt.kernel_size[0], opt.kernel_size[1])
         # print(out_k_m)
         out_y = nn.functional.conv2d(out_x, out_k_m, padding=0, bias=None)
 
         if step < 1000:
-            total_loss = mse(out_y,y)
+            total_loss = mse(out_y, y)
         else:
-            total_loss = 1-ssim(out_y, y) 
+            total_loss = 1 - ssim(out_y, y)
 
         total_loss.backward()
         optimizer.step()
 
-        if (step+1) % opt.save_frequency == 0:
-            print('Iteration %05d' %(step+1))
+        if (step + 1) % opt.save_frequency == 0:
+            print('Iteration %05d' % (step + 1))
             print('Loss: {:.7f}'.format(float(total_loss)))
 
-            save_path = os.path.join(opt_save_path, '{}_x_{:05.0f}.png'.format(imgname, step+1))
+            save_path = os.path.join(opt_save_path, '{}_x_{:05.0f}.png'.format(imgname, step + 1))
             out_x_np = torch_to_np(out_x)
             out_x_np = out_x_np.squeeze()
-            out_x_np = out_x_np[padh//2:padh//2+img_size[1], padw//2:padw//2+img_size[2]]
+            out_x_np = out_x_np[padh // 2:padh // 2 + img_size[1], padw // 2:padw // 2 + img_size[2]]
             imsave(save_path, out_x_np)
 
-            save_path = os.path.join(opt_save_path, '{}_k_{:05.0f}.png'.format(imgname, step+1))
+            save_path = os.path.join(opt_save_path, '{}_k_{:05.0f}.png'.format(imgname, step + 1))
             out_k_np = torch_to_np(out_k_m)
             out_k_np = out_k_np.squeeze()
             out_k_np /= np.max(out_k_np)
